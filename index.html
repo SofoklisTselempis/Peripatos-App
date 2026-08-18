@@ -99,6 +99,15 @@
   .navitem{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--stone);cursor:pointer;}
   .navitem.on{color:var(--forest-deep);}
   .navitem span{font-size:10px;}
+  .profile-head{display:flex;gap:14px;align-items:center;padding:6px 0 18px;}
+  .avatar-lg{width:56px;height:56px;border-radius:50%;background:var(--forest);display:flex;
+    align-items:center;justify-content:center;color:#F1EFE4;font-family:'Fraunces',serif;
+    font-size:19px;font-weight:500;flex-shrink:0;}
+  .profile-display-name{font-family:'Fraunces',serif;font-size:17px;font-weight:500;margin:0;}
+  .stat-mini-row{display:flex;gap:10px;margin-bottom:18px;}
+  .stat-mini{flex:1;background:var(--card);border-radius:12px;border:0.5px solid var(--line);padding:10px;text-align:center;}
+  .stat-mini b{display:block;font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:500;}
+  .stat-mini span{font-size:10px;color:var(--stone);}
   .toast{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);left:16px;right:16px;background:var(--ink);color:#F1EFE4;font-size:12px;
     padding:10px 14px;border-radius:10px;text-align:center;display:none;z-index:50;max-width:420px;margin:0 auto;}
 </style>
@@ -168,6 +177,17 @@
       <div style="width:34px"></div>
     </div>
     <div class="content">
+      <div class="profile-head">
+        <div class="avatar-lg" id="prof-avatar"></div>
+        <div>
+          <p class="profile-display-name" id="prof-headline">Your profile</p>
+          <p class="hint" style="margin:2px 0 0;">Edit your details below</p>
+        </div>
+      </div>
+      <div class="stat-mini-row">
+        <div class="stat-mini"><b id="prof-walks">0</b><span>walks</span></div>
+        <div class="stat-mini"><b id="prof-distance">0.0</b><span>km total</span></div>
+      </div>
       <div class="field-label">Name</div>
       <input class="field" id="prof-name">
       <div class="field-label">Philosophical interests</div>
@@ -438,7 +458,7 @@ function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; 
 // ---------- walking ----------
 function startWalk(){
   state.path = []; state.distance = 0; state.startTime = Date.now();
-  state.audioDataUrl = null; state.recSeconds = 0; state.simulated = false;
+  state.audioDataUrl = null; state.recSeconds = 0; state.simulated = false; state.lastAccepted = null;
   document.getElementById('walk-timer').textContent = '00:00';
   document.getElementById('walk-distance').textContent = '0.00';
   document.getElementById('walk-points').textContent = '0';
@@ -462,7 +482,11 @@ function startWalk(){
 
 function handlePosition(pos){
   const {latitude, longitude, accuracy} = pos.coords;
-  document.getElementById('gps-status').textContent = 'Accuracy \u00b1' + Math.round(accuracy) + 'm';
+  if(accuracy && accuracy > 30){
+    document.getElementById('gps-status').textContent = 'Signal weak (\u00b1' + Math.round(accuracy) + 'm) \u2014 waiting for a better fix';
+  } else {
+    document.getElementById('gps-status').textContent = 'Accuracy \u00b1' + Math.round(accuracy) + 'm';
+  }
   addPathPoint(latitude, longitude, accuracy);
 }
 function handleGeoError(err){
@@ -485,11 +509,18 @@ function startSimulated(){
   }, 2000);
 }
 function addPathPoint(lat, lon, accuracy){
-  const prev = state.path[state.path.length-1];
-  if(prev && accuracy <= 50){
-    const d = haversineKm(prev.lat, prev.lon, lat, lon);
-    if(d > 0.001) state.distance += d; // ignore GPS jitter under ~1m
+  // Ignore fixes too imprecise to trust at all.
+  if(accuracy && accuracy > 30) return;
+  const prev = state.lastAccepted;
+  if(prev){
+    const dKm = haversineKm(prev.lat, prev.lon, lat, lon);
+    const dM = dKm * 1000;
+    // A fix within its own accuracy radius (or a 4m floor) is GPS jitter, not real movement.
+    const noiseFloorM = Math.max(4, accuracy || 8);
+    if(dM < noiseFloorM) return;
+    state.distance += dKm;
   }
+  state.lastAccepted = {lat, lon};
   state.path.push({lat, lon});
   document.getElementById('walk-distance').textContent = state.distance.toFixed(2);
   document.getElementById('walk-points').textContent = state.path.length;
@@ -613,6 +644,11 @@ function drawPath(svgId, path){
   }
   const lats = path.map(p=>p.lat), lons = path.map(p=>p.lon);
   const minLat=Math.min(...lats), maxLat=Math.max(...lats), minLon=Math.min(...lons), maxLon=Math.max(...lons);
+  const diagKm = haversineKm(minLat, minLon, maxLat, maxLon);
+  if(diagKm < 0.01){
+    svg.innerHTML = '<text x="150" y="78" text-anchor="middle" font-size="12" fill="#8C8A7C" font-family="Inter">Barely moved \u2014 not enough distance to draw a path</text>';
+    return;
+  }
   const pad = 20, w = 300-pad*2, h = 150-pad*2;
   const spanLat = (maxLat-minLat)||0.0001, spanLon = (maxLon-minLon)||0.0001;
   const pts = path.map(p=>{
@@ -679,12 +715,36 @@ async function resetData(){
 function notImplemented(label){
   toast(label + ' need a backend \u2014 coming in a later milestone.');
 }
+function initials(name){
+  if(!name) return '?';
+  return name.trim().split(/\s+/).slice(0,2).map(w=>w[0].toUpperCase()).join('');
+}
+async function loadProfileStats(){
+  try {
+    const res = await storage.list('sessions:', false);
+    const keys = (res && res.keys) ? res.keys : [];
+    let totalDist = 0;
+    for(const k of keys){
+      try { const r = await storage.get(k, false); if(r && r.value){ totalDist += JSON.parse(r.value).distance; } }
+      catch(e){}
+    }
+    document.getElementById('prof-walks').textContent = keys.length;
+    document.getElementById('prof-distance').textContent = totalDist.toFixed(1);
+  } catch(e){
+    document.getElementById('prof-walks').textContent = '0';
+    document.getElementById('prof-distance').textContent = '0.0';
+  }
+}
 function openProfile(){
-  document.getElementById('prof-name').value = state.profile ? state.profile.name : '';
+  const name = state.profile ? state.profile.name : '';
+  document.getElementById('prof-name').value = name;
+  document.getElementById('prof-avatar').textContent = initials(name);
+  document.getElementById('prof-headline').textContent = name || 'Your profile';
   const interests = (state.profile && state.profile.interests) ? state.profile.interests : [];
   document.querySelectorAll('#prof-interests .pickchip').forEach(c=>{
     c.classList.toggle('on', interests.includes(c.textContent));
   });
+  loadProfileStats();
   go('profile');
 }
 document.querySelectorAll('#prof-interests .pickchip').forEach(c=>{
@@ -698,6 +758,8 @@ async function saveProfile(){
   try { await storage.set('profile', JSON.stringify(state.profile), false); }
   catch(e){ toast("Couldn't save \u2014 try again."); return; }
   document.getElementById('greetName').textContent = 'Hi, '+name;
+  document.getElementById('prof-avatar').textContent = initials(name);
+  document.getElementById('prof-headline').textContent = name;
   toast('Profile updated.');
   go('home');
 }
