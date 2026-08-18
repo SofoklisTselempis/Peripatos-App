@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Peripatos</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#243328">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icon.svg">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
+  :root{
+    --ink:#20291F; --ink-soft:#4B564A; --stone:#8C8A7C;
+    --bg-page:#E9E6DA; --bg-app:#F1EFE4; --card:#FBFAF4;
+    --gold:#B8863B; --gold-deep:#8C6224; --forest:#3E5941; --forest-deep:#243328;
+    --brick:#B04A38; --line:#DAD6C6; --bezel:#26241D;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{margin:0;background:var(--bg-app);font-family:'Inter',sans-serif;color:var(--ink);min-height:100dvh;}
+  .app-shell{position:relative;width:100%;min-height:100dvh;}
+  .screen{width:100%;min-height:100dvh;background:var(--bg-app);display:none;flex-direction:column;}
+  .screen.active{display:flex;}
+  .topbar{padding:calc(env(safe-area-inset-top,0px) + 22px) 20px 12px;display:flex;align-items:center;justify-content:space-between;}
+  .wordmark{font-family:'Fraunces',serif;font-weight:500;font-size:18px;}
+  .iconbtn{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    background:var(--card);border:0.5px solid var(--line);cursor:pointer;flex-shrink:0;}
+  .content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:0 20px calc(env(safe-area-inset-bottom,0px) + 16px);}
+  .content::-webkit-scrollbar{display:none;}
+  .sectiontitle{font-family:'Fraunces',serif;font-size:15px;font-weight:500;margin:10px 0 10px;}
+  .hint{font-size:12px;color:var(--stone);line-height:1.5;}
+  .field-label{font-size:12px;color:var(--ink-soft);margin:14px 0 6px;font-weight:500;}
+  input.field, textarea.field{width:100%;border:0.5px solid var(--line);background:var(--card);border-radius:10px;
+    padding:10px 12px;font-family:'Inter';font-size:14px;color:var(--ink);}
+  textarea.field{resize:none;height:56px;}
+  .continue-btn{width:100%;background:var(--forest-deep);color:#F1EFE4;border:none;border-radius:12px;
+    padding:14px;font-family:'Inter';font-weight:500;font-size:14px;cursor:pointer;margin-top:22px;}
+  .continue-btn:disabled{opacity:0.5;}
+  .btn-outline{flex:1;background:transparent;border:0.5px solid var(--ink-soft);color:var(--ink);border-radius:10px;
+    padding:12px;font-family:'Inter';font-weight:500;font-size:13px;cursor:pointer;}
+  .btn-solid{flex:1;background:var(--forest-deep);color:#F1EFE4;border:none;border-radius:10px;padding:12px;
+    font-family:'Inter';font-weight:500;font-size:13px;cursor:pointer;}
+  .publish-row{display:flex;gap:10px;margin-top:20px;}
+  .err{color:var(--brick);font-size:11px;margin-top:6px;}
+  .chipgrid{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;}
+  .pickchip{font-size:12px;padding:8px 13px;border-radius:20px;border:0.5px solid var(--line);
+    background:var(--card);color:var(--ink-soft);cursor:pointer;}
+  .pickchip.on{background:var(--gold);border-color:var(--gold);color:#2B1E0D;}
+  .freewalk-btn{width:100%;background:var(--forest-deep);color:#F1EFE4;font-family:'Inter';font-weight:500;
+    font-size:14px;border:none;border-radius:14px;padding:16px;display:flex;align-items:center;
+    justify-content:center;gap:8px;cursor:pointer;margin-bottom:20px;}
+  .route-card{display:flex;gap:12px;background:var(--card);border:0.5px solid var(--line);border-radius:14px;
+    padding:12px;margin-bottom:10px;cursor:pointer;}
+  .route-thumb{width:44px;height:44px;border-radius:10px;background:#E3E7D6;flex-shrink:0;display:flex;
+    align-items:center;justify-content:center;color:var(--forest-deep);font-size:16px;}
+  .route-info{flex:1;min-width:0;}
+  .route-name{font-size:14px;font-weight:500;margin:0 0 3px;}
+  .route-meta{font-size:12px;color:var(--stone);margin:0;font-family:'IBM Plex Mono',monospace;}
+  .empty{text-align:center;padding:40px 10px;color:var(--stone);font-size:13px;}
+  .banner{background:#F6E9DE;border:0.5px solid var(--gold);color:var(--gold-deep);font-size:12px;
+    border-radius:10px;padding:10px 12px;margin-bottom:12px;line-height:1.5;}
+  .banner button{margin-top:6px;background:var(--gold-deep);color:#FBF3E4;border:none;border-radius:7px;
+    padding:6px 10px;font-size:11px;cursor:pointer;}
+  .walk-body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:0 24px;}
+  .walk-label{font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--stone);margin-bottom:6px;}
+  .walk-time{font-family:'IBM Plex Mono',monospace;font-size:42px;font-weight:500;margin-bottom:20px;}
+  .stat-row{display:flex;gap:32px;margin-bottom:8px;}
+  .stat{text-align:center;}
+  .stat-num{font-family:'IBM Plex Mono',monospace;font-size:19px;font-weight:500;}
+  .stat-lbl{font-size:10px;color:var(--stone);margin-top:2px;}
+  .gps-status{font-size:11px;color:var(--stone);margin-bottom:28px;font-family:'IBM Plex Mono',monospace;}
+  .record-btn{width:74px;height:74px;border-radius:50%;background:var(--card);border:2px solid var(--brick);
+    display:flex;align-items:center;justify-content:center;cursor:pointer;margin-bottom:10px;}
+  .record-dot{width:24px;height:24px;border-radius:8px;background:var(--brick);transition:all .25s;}
+  .record-btn.on .record-dot{border-radius:50%;}
+  .rec-caption{font-size:12px;color:var(--ink-soft);margin-bottom:6px;}
+  .levelmeter{width:120px;height:6px;background:var(--card);border:0.5px solid var(--line);border-radius:4px;
+    overflow:hidden;margin-bottom:30px;}
+  .levelfill{height:100%;width:0%;background:var(--brick);transition:width .08s linear;}
+  .end-btn{width:100%;background:var(--ink);color:#F1EFE4;border:none;border-radius:12px;padding:14px;
+    font-family:'Inter';font-weight:500;font-size:14px;cursor:pointer;}
+  .pathsvg{width:100%;height:150px;background:var(--card);border:0.5px solid var(--line);border-radius:14px;margin-bottom:16px;}
+  .summary-stats{display:flex;gap:10px;margin-bottom:14px;}
+  .metric{flex:1;background:var(--card);border-radius:14px;border:0.5px solid var(--line);padding:12px;text-align:center;}
+  .metric-num{font-family:'IBM Plex Mono',monospace;font-size:17px;font-weight:500;}
+  .metric-lbl{font-size:10px;color:var(--stone);margin-top:2px;}
+  .segmented{display:flex;background:var(--card);border:0.5px solid var(--line);border-radius:10px;padding:3px;margin-top:8px;}
+  .seg-opt{flex:1;text-align:center;padding:7px 0;font-size:12px;border-radius:8px;cursor:pointer;color:var(--stone);}
+  .seg-opt.on{background:var(--forest-deep);color:#F1EFE4;}
+  .disclaimer{font-size:11px;color:var(--stone);margin-top:8px;line-height:1.5;}
+  .audioplayer{width:100%;margin-top:10px;}
+  .footlink{text-align:center;font-size:11px;color:var(--stone);margin-top:18px;cursor:pointer;text-decoration:underline;}
+  .bottomnav{display:flex;justify-content:space-around;align-items:center;flex:none;
+    padding:10px 10px calc(env(safe-area-inset-bottom,0px) + 14px);
+    background:var(--card);border-top:0.5px solid var(--line);}
+  .navitem{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--stone);cursor:pointer;}
+  .navitem.on{color:var(--forest-deep);}
+  .navitem span{font-size:10px;}
+  .toast{position:fixed;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);left:16px;right:16px;background:var(--ink);color:#F1EFE4;font-size:12px;
+    padding:10px 14px;border-radius:10px;text-align:center;display:none;z-index:50;max-width:420px;margin:0 auto;}
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ONBOARDING -->
+  <div class="screen" id="screen-onboarding">
+    <div class="topbar"><div class="wordmark">peripatos</div><div style="width:34px"></div></div>
+    <div class="content">
+      <div class="sectiontitle" style="font-size:19px;">Set up your profile</div>
+      <div class="hint">This stays on this device for now — no account system yet.</div>
+      <div class="field-label">Name</div>
+      <input class="field" id="ob-name" placeholder="Your name">
+      <div class="field-label">Philosophical interests</div>
+      <div class="chipgrid" id="ob-interests">
+        <div class="pickchip">Stoicism</div><div class="pickchip">Existentialism</div>
+        <div class="pickchip">Ethics</div><div class="pickchip">Phil. of mind</div>
+        <div class="pickchip">Free will</div><div class="pickchip">Nietzsche</div>
+        <div class="pickchip">Absurdism</div><div class="pickchip">Phenomenology</div>
+      </div>
+      <div class="err" id="ob-err" style="display:none;">Enter a name to continue.</div>
+      <button class="continue-btn" onclick="submitOnboarding()">Start exploring</button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="screen" id="screen-home">
+    <div class="topbar">
+      <div class="wordmark">peripatos</div>
+      <div class="hint" id="greetName" style="margin:0;"></div>
+    </div>
+    <div class="content">
+      <button class="freewalk-btn" onclick="go('walking'); startWalk();">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F1EFE4" stroke-width="2"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        Start a free walk
+      </button>
+      <div class="sectiontitle">Your walks</div>
+      <div id="history-list"><div class="empty">No walks yet — start your first one.</div></div>
+    </div>
+    <div class="bottomnav">
+      <div class="navitem on" onclick="go('home')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>
+        <span>Home</span>
+      </div>
+      <div class="navitem" onclick="notImplemented('Routes')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 20l-5-2V5l5 2m0 13l6-2m-6 2V7m6 11l5 2V6l-5-2m0 16V5m0 0L9 7"/></svg>
+        <span>Routes</span>
+      </div>
+      <div class="navitem" onclick="notImplemented('Connections')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 2.5-5 6-5s6 2 6 5M14.5 15.2c2.6.3 4.5 2 4.5 4.8"/></svg>
+        <span>Connect</span>
+      </div>
+      <div class="navitem" onclick="openProfile()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+        <span>Profile</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- PROFILE -->
+  <div class="screen" id="screen-profile">
+    <div class="topbar">
+      <div class="wordmark" style="font-size:16px;">profile</div>
+      <div style="width:34px"></div>
+    </div>
+    <div class="content">
+      <div class="field-label">Name</div>
+      <input class="field" id="prof-name">
+      <div class="field-label">Philosophical interests</div>
+      <div class="chipgrid" id="prof-interests">
+        <div class="pickchip">Stoicism</div><div class="pickchip">Existentialism</div>
+        <div class="pickchip">Ethics</div><div class="pickchip">Phil. of mind</div>
+        <div class="pickchip">Free will</div><div class="pickchip">Nietzsche</div>
+        <div class="pickchip">Absurdism</div><div class="pickchip">Phenomenology</div>
+      </div>
+      <button class="continue-btn" onclick="saveProfile()">Save changes</button>
+      <div class="footlink" onclick="resetData()">Reset local data</div>
+    </div>
+    <div class="bottomnav">
+      <div class="navitem" onclick="go('home')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7v9a1 1 0 01-1 1h-5v-6H9v6H4a1 1 0 01-1-1z"/></svg>
+        <span>Home</span>
+      </div>
+      <div class="navitem" onclick="notImplemented('Routes')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 20l-5-2V5l5 2m0 13l6-2m-6 2V7m6 11l5 2V6l-5-2m0 16V5m0 0L9 7"/></svg>
+        <span>Routes</span>
+      </div>
+      <div class="navitem" onclick="notImplemented('Connections')">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-3 2.5-5 6-5s6 2 6 5M14.5 15.2c2.6.3 4.5 2 4.5 4.8"/></svg>
+        <span>Connect</span>
+      </div>
+      <div class="navitem on" onclick="openProfile()">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.5-7 8-7s8 3 8 7"/></svg>
+        <span>Profile</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WALKING -->
+  <div class="screen" id="screen-walking">
+    <div class="topbar">
+      <div class="iconbtn" onclick="cancelWalk()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"/></svg></div>
+      <div class="hint" style="margin:0;">walking</div><div style="width:34px;"></div>
+    </div>
+    <div class="content" style="padding-top:6px;">
+      <div id="gps-banner"></div>
+    </div>
+    <div class="walk-body">
+      <div class="walk-label">elapsed time</div>
+      <div class="walk-time" id="walk-timer">00:00</div>
+      <div class="stat-row">
+        <div class="stat"><div class="stat-num" id="walk-distance">0.00</div><div class="stat-lbl">km</div></div>
+        <div class="stat"><div class="stat-num" id="walk-points">0</div><div class="stat-lbl">gps fixes</div></div>
+      </div>
+      <div class="gps-status" id="gps-status">Locating…</div>
+      <div class="record-btn" id="record-btn" onclick="toggleRecording()"><div class="record-dot"></div></div>
+      <div class="rec-caption" id="rec-caption">Tap to start recording</div>
+      <div class="levelmeter"><div class="levelfill" id="levelfill"></div></div>
+    </div>
+    <div class="content" style="flex:none;padding-bottom:24px;">
+      <button class="end-btn" onclick="endWalk()">End walk</button>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="screen" id="screen-summary">
+    <div class="topbar">
+      <div class="hint" style="margin:0;">walk summary</div><div style="width:34px"></div>
+    </div>
+    <div class="content">
+      <svg class="pathsvg" id="path-svg" viewBox="0 0 300 150"></svg>
+      <div class="summary-stats">
+        <div class="metric"><div class="metric-num" id="sum-time">00:00</div><div class="metric-lbl">duration</div></div>
+        <div class="metric"><div class="metric-num" id="sum-dist">0.00</div><div class="metric-lbl">km</div></div>
+        <div class="metric"><div class="metric-num" id="sum-audio">–</div><div class="metric-lbl">audio</div></div>
+      </div>
+      <div class="field-label">Title</div>
+      <input class="field" id="sum-title" placeholder="What did you talk about?">
+      <div class="err" id="title-err" style="display:none;">Add a title before saving.</div>
+      <div class="field-label">Who can see this</div>
+      <div class="segmented" id="privacy-seg">
+        <div class="seg-opt on" data-v="me" onclick="setPrivacy(this)">Only me</div>
+        <div class="seg-opt" data-v="friends" onclick="setPrivacy(this)">Friends</div>
+        <div class="seg-opt" data-v="all" onclick="setPrivacy(this)">Everyone</div>
+      </div>
+      <div class="disclaimer">No backend yet, so this is stored only on this device regardless of the tier chosen — the selector is wired up for when sharing is real.</div>
+      <div class="publish-row">
+        <button class="btn-outline" onclick="go('home')">Discard</button>
+        <button class="btn-solid" onclick="saveWalk()">Save walk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SESSION DETAIL -->
+  <div class="screen" id="screen-detail">
+    <div class="topbar">
+      <div class="iconbtn" onclick="go('home')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg></div>
+      <div class="hint" style="margin:0;">walk detail</div><div style="width:34px"></div>
+    </div>
+    <div class="content">
+      <div class="sectiontitle" id="det-title" style="font-size:18px;"></div>
+      <div class="hint" id="det-date"></div>
+      <svg class="pathsvg" id="det-path-svg" viewBox="0 0 300 150" style="margin-top:12px;"></svg>
+      <div class="summary-stats">
+        <div class="metric"><div class="metric-num" id="det-time">–</div><div class="metric-lbl">duration</div></div>
+        <div class="metric"><div class="metric-num" id="det-dist">–</div><div class="metric-lbl">km</div></div>
+        <div class="metric"><div class="metric-num" id="det-priv">–</div><div class="metric-lbl">visibility</div></div>
+      </div>
+      <div id="det-audio-wrap"></div>
+      <button class="btn-outline" style="width:100%;margin-top:18px;" onclick="deleteWalk()">Delete this walk</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+</div>
+
+<script>
+const DB_NAME = 'peripatos-db', STORE_NAME = 'kv';
+function idbOpen(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = ()=> req.result.createObjectStore(STORE_NAME);
+    req.onsuccess = ()=> resolve(req.result);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+const storage = {
+  async get(key){
+    const db = await idbOpen();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE_NAME,'readonly');
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = ()=> resolve(req.result!==undefined ? {key, value:req.result} : null);
+      req.onerror = ()=> reject(req.error);
+    });
+  },
+  async set(key, value){
+    const db = await idbOpen();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE_NAME,'readwrite');
+      tx.objectStore(STORE_NAME).put(value, key);
+      tx.oncomplete = ()=> resolve({key,value});
+      tx.onerror = ()=> reject(tx.error);
+    });
+  },
+  async delete(key){
+    const db = await idbOpen();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE_NAME,'readwrite');
+      tx.objectStore(STORE_NAME).delete(key);
+      tx.oncomplete = ()=> resolve({key, deleted:true});
+      tx.onerror = ()=> reject(tx.error);
+    });
+  },
+  async list(prefix){
+    const db = await idbOpen();
+    return new Promise((resolve,reject)=>{
+      const tx = db.transaction(STORE_NAME,'readonly');
+      const req = tx.objectStore(STORE_NAME).getAllKeys();
+      req.onsuccess = ()=> resolve({keys: req.result.filter(k=>!prefix || String(k).startsWith(prefix))});
+      req.onerror = ()=> reject(req.error);
+    });
+  }
+};
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('service-worker.js').then(reg => reg.update()).catch(()=>{});
+}
+
+let state = {
+  profile: null,
+  path: [],
+  distance: 0,
+  watchId: null,
+  timerInterval: null,
+  startTime: null,
+  recording: false,
+  mediaRecorder: null,
+  audioChunks: [],
+  audioDataUrl: null,
+  audioContext: null,
+  analyser: null,
+  micStream: null,
+  levelRAF: null,
+  recSeconds: 0,
+  recInterval: null,
+  simInterval: null,
+  simulated: false,
+  lastWalk: null,
+  viewingKey: null
+};
+const MAX_RECORD_SECONDS = 180;
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display = 'block';
+  clearTimeout(t._h); t._h = setTimeout(()=> t.style.display='none', 2600);
+}
+
+function go(screen){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+screen).classList.add('active');
+}
+
+function haversineKm(lat1, lon1, lat2, lon2){
+  const R = 6371;
+  const toRad = d => d*Math.PI/180;
+  const dLat = toRad(lat2-lat1), dLon = toRad(lon2-lon1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLon/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function fmtTime(s){ const m = Math.floor(s/60), r = s%60; return String(m).padStart(2,'0')+':'+String(r).padStart(2,'0'); }
+
+// ---------- init ----------
+async function init(){
+  try {
+    const p = await storage.get('profile');
+    if(p && p.value){
+      state.profile = JSON.parse(p.value);
+      document.getElementById('greetName').textContent = 'Hi, '+state.profile.name;
+      go('home');
+      loadHistory();
+      return;
+    }
+  } catch(e){}
+  go('onboarding');
+}
+document.querySelectorAll('#ob-interests .pickchip').forEach(c=>{
+  c.addEventListener('click', ()=> c.classList.toggle('on'));
+});
+
+async function submitOnboarding(){
+  const name = document.getElementById('ob-name').value.trim();
+  const err = document.getElementById('ob-err');
+  if(!name){ err.style.display='block'; return; }
+  err.style.display='none';
+  const interests = Array.from(document.querySelectorAll('#ob-interests .pickchip.on')).map(c=>c.textContent);
+  state.profile = {name, interests};
+  try {
+    await storage.set('profile', JSON.stringify(state.profile), false);
+  } catch(e){ toast("Couldn't save profile — continuing anyway."); }
+  document.getElementById('greetName').textContent = 'Hi, '+name;
+  go('home');
+  loadHistory();
+}
+
+// ---------- history ----------
+async function loadHistory(){
+  const listEl = document.getElementById('history-list');
+  try {
+    const res = await storage.list('sessions:', false);
+    const keys = (res && res.keys) ? res.keys : [];
+    if(keys.length === 0){ listEl.innerHTML = '<div class="empty">No walks yet — start your first one.</div>'; return; }
+    const sessions = [];
+    for(const k of keys){
+      try { const r = await storage.get(k, false); if(r && r.value) sessions.push({key:k, data: JSON.parse(r.value)}); }
+      catch(e){}
+    }
+    sessions.sort((a,b)=> b.data.createdAt - a.data.createdAt);
+    listEl.innerHTML = '';
+    sessions.forEach(s=>{
+      const row = document.createElement('div');
+      row.className = 'route-card';
+      row.onclick = ()=> openDetail(s.key, s.data);
+      row.innerHTML = `<div class="route-thumb">${s.data.audioDataUrl ? '\u266A' : '\u2022'}</div>
+        <div class="route-info"><p class="route-name">${escapeHtml(s.data.title)}</p>
+        <p class="route-meta">${s.data.distance.toFixed(2)} km · ${fmtTime(s.data.duration)} · ${new Date(s.data.createdAt).toLocaleDateString()}</p></div>`;
+      listEl.appendChild(row);
+    });
+  } catch(e){ listEl.innerHTML = '<div class="empty">No walks yet — start your first one.</div>'; }
+}
+function escapeHtml(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// ---------- walking ----------
+function startWalk(){
+  state.path = []; state.distance = 0; state.startTime = Date.now();
+  state.audioDataUrl = null; state.recSeconds = 0; state.simulated = false;
+  document.getElementById('walk-timer').textContent = '00:00';
+  document.getElementById('walk-distance').textContent = '0.00';
+  document.getElementById('walk-points').textContent = '0';
+  document.getElementById('gps-banner').innerHTML = '';
+  document.getElementById('gps-status').textContent = 'Locating…';
+  document.getElementById('record-btn').classList.remove('on');
+  document.getElementById('rec-caption').textContent = 'Tap to start recording';
+
+  state.timerInterval = setInterval(()=>{
+    document.getElementById('walk-timer').textContent = fmtTime(Math.floor((Date.now()-state.startTime)/1000));
+  }, 1000);
+
+  if('geolocation' in navigator){
+    state.watchId = navigator.geolocation.watchPosition(handlePosition, handleGeoError, {
+      enableHighAccuracy:true, maximumAge:0, timeout:15000
+    });
+  } else {
+    showGeoFallback('Geolocation isn\u2019t available in this browser.');
+  }
+}
+
+function handlePosition(pos){
+  const {latitude, longitude, accuracy} = pos.coords;
+  document.getElementById('gps-status').textContent = 'Accuracy \u00b1' + Math.round(accuracy) + 'm';
+  addPathPoint(latitude, longitude, accuracy);
+}
+function handleGeoError(err){
+  document.getElementById('gps-status').textContent = 'No GPS signal';
+  showGeoFallback('Location access ' + (err.code===1 ? 'was denied.' : 'isn\u2019t available right now.') + ' You can still track a walk manually.');
+}
+function showGeoFallback(msg){
+  document.getElementById('gps-banner').innerHTML =
+    `<div class="banner">${msg}<br><button onclick="startSimulated()">Simulate movement instead</button></div>`;
+}
+function startSimulated(){
+  document.getElementById('gps-banner').innerHTML = '<div class="banner">Simulated GPS \u2014 no real location used.</div>';
+  state.simulated = true;
+  let lat = 40.6401, lon = 22.9444;
+  addPathPoint(lat, lon, 5);
+  state.simInterval = setInterval(()=>{
+    lat += (Math.random()-0.5)*0.00025;
+    lon += (Math.random()-0.5)*0.00025;
+    addPathPoint(lat, lon, 5);
+  }, 2000);
+}
+function addPathPoint(lat, lon, accuracy){
+  const prev = state.path[state.path.length-1];
+  if(prev && accuracy <= 50){
+    const d = haversineKm(prev.lat, prev.lon, lat, lon);
+    if(d > 0.001) state.distance += d; // ignore GPS jitter under ~1m
+  }
+  state.path.push({lat, lon});
+  document.getElementById('walk-distance').textContent = state.distance.toFixed(2);
+  document.getElementById('walk-points').textContent = state.path.length;
+}
+
+async function toggleRecording(){
+  if(!state.recording){
+    try {
+      state.micStream = await navigator.mediaDevices.getUserMedia({audio:true});
+    } catch(e){
+      toast("Microphone access wasn't granted.");
+      return;
+    }
+    state.audioChunks = [];
+    state.mediaRecorder = new MediaRecorder(state.micStream);
+    state.mediaRecorder.ondataavailable = e => { if(e.data.size>0) state.audioChunks.push(e.data); };
+    state.mediaRecorder.start();
+    state.recording = true;
+    state.recSeconds = 0;
+    document.getElementById('record-btn').classList.add('on');
+    document.getElementById('rec-caption').textContent = 'Recording \u2014 0:00 / 3:00';
+    state.recInterval = setInterval(()=>{
+      state.recSeconds++;
+      document.getElementById('rec-caption').textContent = 'Recording \u2014 ' + fmtTime(state.recSeconds) + ' / 3:00';
+      if(state.recSeconds >= MAX_RECORD_SECONDS){ toast('Reached the 3-minute demo cap.'); stopRecordingOnly(); }
+    }, 1000);
+    try {
+      state.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const source = state.audioContext.createMediaStreamSource(state.micStream);
+      state.analyser = state.audioContext.createAnalyser();
+      state.analyser.fftSize = 256;
+      source.connect(state.analyser);
+      animateLevel();
+    } catch(e){}
+  } else {
+    stopRecordingOnly();
+  }
+}
+function animateLevel(){
+  if(!state.recording){ document.getElementById('levelfill').style.width='0%'; return; }
+  const data = new Uint8Array(state.analyser.frequencyBinCount);
+  state.analyser.getByteTimeDomainData(data);
+  let sum = 0;
+  for(let i=0;i<data.length;i++){ const v=(data[i]-128)/128; sum += v*v; }
+  const rms = Math.sqrt(sum/data.length);
+  document.getElementById('levelfill').style.width = Math.min(100, rms*300) + '%';
+  state.levelRAF = requestAnimationFrame(animateLevel);
+}
+function stopRecordingOnly(){
+  if(!state.mediaRecorder) return;
+  state.recording = false;
+  clearInterval(state.recInterval);
+  cancelAnimationFrame(state.levelRAF);
+  document.getElementById('levelfill').style.width='0%';
+  document.getElementById('record-btn').classList.remove('on');
+  document.getElementById('rec-caption').textContent = 'Processing audio…';
+  state.mediaRecorder.onstop = async ()=>{
+    const blob = new Blob(state.audioChunks, {type: state.mediaRecorder.mimeType || 'audio/webm'});
+    state.audioDataUrl = await blobToDataUrl(blob);
+    document.getElementById('rec-caption').textContent = 'Tap to start recording';
+    if(state.micStream) state.micStream.getTracks().forEach(t=>t.stop());
+    if(state.audioContext) state.audioContext.close();
+  };
+  state.mediaRecorder.stop();
+}
+function blobToDataUrl(blob){
+  return new Promise((resolve,reject)=>{
+    const r = new FileReader();
+    r.onload = ()=> resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+function stopTracking(){
+  if(state.watchId!==null) navigator.geolocation.clearWatch(state.watchId);
+  state.watchId = null;
+  clearInterval(state.timerInterval);
+  clearInterval(state.simInterval);
+}
+function cancelWalk(){
+  stopTracking();
+  if(state.recording) stopRecordingOnly();
+  go('home');
+}
+async function endWalk(){
+  const duration = Math.floor((Date.now()-state.startTime)/1000);
+  stopTracking();
+  if(state.recording){
+    await new Promise(resolve=>{
+      const orig = state.mediaRecorder.onstop;
+      stopRecordingOnly();
+      state.mediaRecorder.onstop = async (...args)=>{ await orig(...args); resolve(); };
+    });
+  }
+  state.lastWalk = { duration, distance: state.distance, path: state.path.slice(), audioDataUrl: state.audioDataUrl };
+  renderSummary();
+  go('summary');
+}
+function renderSummary(){
+  const w = state.lastWalk;
+  document.getElementById('sum-time').textContent = fmtTime(w.duration);
+  document.getElementById('sum-dist').textContent = w.distance.toFixed(2);
+  document.getElementById('sum-audio').textContent = w.audioDataUrl ? 'yes' : 'none';
+  document.getElementById('sum-title').value = '';
+  document.getElementById('title-err').style.display = 'none';
+  document.querySelectorAll('#privacy-seg .seg-opt').forEach(o=>o.classList.remove('on'));
+  document.querySelector('#privacy-seg .seg-opt[data-v="me"]').classList.add('on');
+  drawPath('path-svg', w.path);
+}
+function setPrivacy(el){
+  document.querySelectorAll('#privacy-seg .seg-opt').forEach(o=>o.classList.remove('on'));
+  el.classList.add('on');
+}
+function drawPath(svgId, path){
+  const svg = document.getElementById(svgId);
+  svg.innerHTML = '';
+  if(!path || path.length < 2){
+    svg.innerHTML = '<text x="150" y="78" text-anchor="middle" font-size="12" fill="#8C8A7C" font-family="Inter">Not enough GPS data to draw a path</text>';
+    return;
+  }
+  const lats = path.map(p=>p.lat), lons = path.map(p=>p.lon);
+  const minLat=Math.min(...lats), maxLat=Math.max(...lats), minLon=Math.min(...lons), maxLon=Math.max(...lons);
+  const pad = 20, w = 300-pad*2, h = 150-pad*2;
+  const spanLat = (maxLat-minLat)||0.0001, spanLon = (maxLon-minLon)||0.0001;
+  const pts = path.map(p=>{
+    const x = pad + ((p.lon-minLon)/spanLon)*w;
+    const y = pad + (1-(p.lat-minLat)/spanLat)*h;
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  svg.innerHTML = `<polyline points="${pts}" fill="none" stroke="#8C6224" stroke-width="2" stroke-dasharray="4 5" stroke-linecap="round"/>
+    <circle cx="${pts.split(' ')[0].split(',')[0]}" cy="${pts.split(' ')[0].split(',')[1]}" r="4" fill="#3E5941"/>
+    <circle cx="${pts.split(' ').slice(-1)[0].split(',')[0]}" cy="${pts.split(' ').slice(-1)[0].split(',')[1]}" r="4" fill="#8C6224"/>`;
+}
+
+async function saveWalk(){
+  const title = document.getElementById('sum-title').value.trim();
+  const err = document.getElementById('title-err');
+  if(!title){ err.style.display='block'; return; }
+  err.style.display='none';
+  const privacy = document.querySelector('#privacy-seg .seg-opt.on').dataset.v;
+  const w = state.lastWalk;
+  const record = { title, duration: w.duration, distance: w.distance, path: w.path, privacy, createdAt: Date.now() };
+  if(w.audioDataUrl && w.audioDataUrl.length < 4500000){ record.audioDataUrl = w.audioDataUrl; }
+  else if(w.audioDataUrl){ toast('Audio too large to store locally \u2014 saved without it.'); }
+  try {
+    await storage.set('sessions:'+record.createdAt, JSON.stringify(record), false);
+    toast('Walk saved.');
+  } catch(e){ toast("Couldn't save \u2014 try again."); return; }
+  go('home');
+  loadHistory();
+}
+
+// ---------- detail ----------
+async function openDetail(key, data){
+  state.viewingKey = key;
+  document.getElementById('det-title').textContent = data.title;
+  document.getElementById('det-date').textContent = new Date(data.createdAt).toLocaleString();
+  document.getElementById('det-time').textContent = fmtTime(data.duration);
+  document.getElementById('det-dist').textContent = data.distance.toFixed(2);
+  const privLabel = {me:'Only me', friends:'Friends', all:'Everyone'}[data.privacy] || 'Only me';
+  document.getElementById('det-priv').textContent = privLabel;
+  drawPath('det-path-svg', data.path);
+  const wrap = document.getElementById('det-audio-wrap');
+  wrap.innerHTML = data.audioDataUrl
+    ? `<div class="field-label">Recording</div><audio class="audioplayer" controls src="${data.audioDataUrl}"></audio>`
+    : `<div class="hint" style="margin-top:10px;">No recording saved for this walk.</div>`;
+  go('detail');
+}
+async function deleteWalk(){
+  try { await storage.delete(state.viewingKey, false); toast('Walk deleted.'); }
+  catch(e){ toast("Couldn't delete \u2014 try again."); }
+  go('home');
+  loadHistory();
+}
+async function resetData(){
+  if(!confirm('Clear all local Peripatos data on this device?')) return;
+  try {
+    const res = await storage.list('sessions:', false);
+    const keys = (res && res.keys) ? res.keys : [];
+    for(const k of keys){ try{ await storage.delete(k, false); }catch(e){} }
+    await storage.delete('profile', false);
+  } catch(e){}
+  location.reload();
+}
+
+function notImplemented(label){
+  toast(label + ' need a backend \u2014 coming in a later milestone.');
+}
+function openProfile(){
+  document.getElementById('prof-name').value = state.profile ? state.profile.name : '';
+  const interests = (state.profile && state.profile.interests) ? state.profile.interests : [];
+  document.querySelectorAll('#prof-interests .pickchip').forEach(c=>{
+    c.classList.toggle('on', interests.includes(c.textContent));
+  });
+  go('profile');
+}
+document.querySelectorAll('#prof-interests .pickchip').forEach(c=>{
+  c.addEventListener('click', ()=> c.classList.toggle('on'));
+});
+async function saveProfile(){
+  const name = document.getElementById('prof-name').value.trim();
+  if(!name){ toast('Add a name first.'); return; }
+  const interests = Array.from(document.querySelectorAll('#prof-interests .pickchip.on')).map(c=>c.textContent);
+  state.profile = {name, interests};
+  try { await storage.set('profile', JSON.stringify(state.profile), false); }
+  catch(e){ toast("Couldn't save \u2014 try again."); return; }
+  document.getElementById('greetName').textContent = 'Hi, '+name;
+  toast('Profile updated.');
+  go('home');
+}
+
+init();
+</script>
+</body>
+</html>
